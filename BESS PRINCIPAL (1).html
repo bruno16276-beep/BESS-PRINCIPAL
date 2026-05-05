@@ -2236,31 +2236,44 @@ async function login() {
   const email = document.getElementById('email').value
   const senha = document.getElementById('senha').value
 
-  const { data, error } = await supabaseClient
+  // LOGIN REAL
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: email,
+    password: senha
+  })
+
+  if (error) {
+    document.getElementById('status').innerText = error.message
+    return
+  }
+
+  // PEGAR USUÁRIO LOGADO
+  const { data: { user } } = await supabaseClient.auth.getUser()
+
+  // BUSCAR DADOS NA TABELA
+  const { data: usuario, error: erroUser } = await supabaseClient
     .from('usuarios')
     .select('*')
-    .eq('email', email)
+    .eq('email', user.email)
     .single()
 
-  if (error || !data) {
-    document.getElementById('status').innerText = "Usuário não encontrado"
+  if (erroUser || !usuario) {
+    document.getElementById('status').innerText = "Usuário não encontrado na tabela"
     return
   }
 
-  if (data.senha !== senha) {
-    document.getElementById('status').innerText = "Senha incorreta"
+  // VALIDAÇÕES
+  if (!usuario.ativo) {
+    document.getElementById('status').innerText = "Acesso desativado"
     return
   }
 
-  if (!data.ativo) {
-    document.getElementById('status').innerText = "Acesso expirado"
+  if (usuario.expira_em && new Date(usuario.expira_em) < new Date()) {
+    document.getElementById('status').innerText = "Plano expirado"
     return
   }
 
+  // LIBERA ACESSO
   document.getElementById('login').style.display = 'none'
   document.getElementById('sistema').style.display = 'block'
 }
-</script>
-
-</body>
-</html>
